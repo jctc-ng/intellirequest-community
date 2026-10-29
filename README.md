@@ -50,3 +50,13 @@ Output in `dist/` is deployed using `.github/workflows/pages.yml` to GitHub Page
 
 ## Deprecated local Python version
 The old `server.py`, `engine.py` and Python files are maintained as historical prototypes and are **not used by the GitHub Pages edition**. Analysts should use the website, not run Python.
+
+## Troubleshooting the DOCX chooser
+
+- **Choose DOCX from this device** opens a standard browser file input. This works even when direct file editing permissions are unavailable.
+- **Open with edit permission** uses the secure File System Access API on compatible Chrome/Edge browsers, allowing the original local document to be updated after a separate backup is saved.
+- If direct editing is not permitted, the app offers **Save As** for an updated local copy instead.
+- If the script appears stale, refresh with **Ctrl+Shift+R** and check [GitHub Actions](https://github.com/jctc-ng/intellirequest-community/actions/workflows/pages.yml) for the latest successful Pages deployment.
+- If the app reports that JavaScript did not load, GitHub Pages may not have deployed the compiled `assets/app.js` from `npm run build`. In GitHub repository Settings → Pages, select **GitHub Actions** as the source.
+
+The browser edition includes the original NFIU crest from the supplied document as a favicon (resized for browser display); no institutional template is bundled.
