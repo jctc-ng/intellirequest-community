@@ -144,12 +144,26 @@ async function generate() {
     }
     generatedBlob=await zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6}});
     const target=$("preview");target.replaceChildren();
-    await renderAsync(generatedBlob,target,undefined,{
-      className:"docx",inWrapper:true,breakPages:true,ignoreWidth:false,
-      ignoreHeight:false,renderHeaders:true,renderFooters:true,
-      renderFootnotes:true,renderEndnotes:true,renderComments:false,
-      useBase64URL:true
-    });
+    let renderWarning="";
+    try{
+      await renderAsync(generatedBlob,target,undefined,{
+        className:"docx",inWrapper:true,breakPages:true,ignoreWidth:false,
+        ignoreHeight:false,renderHeaders:true,renderFooters:true,
+        renderFootnotes:true,renderEndnotes:true,renderComments:false,
+        useBase64URL:true
+      });
+    }catch(renderError){
+      target.replaceChildren();
+      const xmlText=await zip.file("word/document.xml").async("string");
+      const documentXml=new DOMParser().parseFromString(xmlText,"application/xml");
+      const pre=document.createElement("pre");
+      pre.style.cssText="white-space:pre-wrap;background:white;padding:24px;color:#222";
+      pre.textContent=[...documentXml.getElementsByTagNameNS("*","p")]
+        .map(p=>[...p.getElementsByTagNameNS("*","t")].map(t=>t.textContent||"").join(""))
+        .join("\\n");
+      target.appendChild(pre);
+      renderWarning="The detailed preview renderer failed; showing a text-only fallback. ";
+    }
     const results=[...counts].map(([find,count])=>({find,count}));
     const reminders=[
       "Preview is browser-rendered and can differ from Microsoft Word. Reopen the saved file in Word.",
@@ -159,7 +173,7 @@ async function generate() {
     if(!results.length) reminders.unshift("No matching fields or replacement phrases were found. Your document may be unchanged.");
     $("report").textContent="Replacements:\n"+JSON.stringify(results,null,2)+"\n\nReview reminders:\n• "+reminders.join("\n• ");
     changed=results.length>0;$("save").disabled=!changed;
-    status(changed?"Preview generated. Check the changes before updating your original file.":"No edits matched. Add placeholders or Find/Replace rules.");
+    status(renderWarning+(changed?"Preview generated. Check the changes before updating your original file.":"No edits matched. Add placeholders or Find/Replace rules."));
   }catch(err) {
     generatedBlob=null;$("save").disabled=true;status("Preview error: "+err.message);
   }
@@ -208,3 +222,5 @@ $("save").addEventListener("click",async()=>{
     status("Original Word document updated on this device and separate backup created. Open in Word to inspect final formatting.");
   }catch(err){if(err.name!=="AbortError")status("Save failed: "+err.message);}
 });
+
+if(!selectedFile)updateStatus("Application ready. Select a DOCX using the native file input or Open with edit permission. Files are processed locally.");
