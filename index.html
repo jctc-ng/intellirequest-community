@@ -132,10 +132,10 @@ save.onclick=async()=>{
  if(!payload||!handle||save.disabled)return;
  if(!confirm('Make a BACKUP and then replace the original '+handle.name+' with the reviewed changes?'))return;
  try{
+   const backup=await showSaveFilePicker({suggestedName:original.name.replace(/\.docx$/i,'')+'-backup.docx',
+     types:[{description:'Word DOCX',accept:{[mime]:['.docx']}}]});
    const latest=await handle.getFile();
    if((await sha256(await latest.arrayBuffer()))!==hash)throw Error('Original document changed. Reopen before saving.');
-   const backup=await showSaveFilePicker({suggestedName:latest.name.replace(/\.docx$/i,'')+'-backup.docx',
-     types:[{description:'Word DOCX',accept:{[mime]:['.docx']}}]});
    if(await backup.isSameEntry(handle))throw Error('The backup must be a different file.');
    const backupStream=await backup.createWritable();
    await backupStream.write(await latest.arrayBuffer());await backupStream.close();
