@@ -60,3 +60,13 @@ The old `server.py`, `engine.py` and Python files are maintained as historical p
 - If the app reports that JavaScript did not load, GitHub Pages may not have deployed the compiled `assets/app.js` from `npm run build`. In GitHub repository Settings → Pages, select **GitHub Actions** as the source.
 
 The browser edition includes the original NFIU crest from the supplied document as a favicon (resized for browser display); no institutional template is bundled.
+
+## Updated form mapping and download workflow
+
+If you import a Word document with **existing text instead of placeholders**, IntelliRequest cannot know which existing company, person, date or jurisdiction is the one you intend to replace. The form therefore provides a **Currently written in document** column beside each input field. Enter the exact original value and the new value in the main form. After import, the app suggests a few detectable old values (e.g., references or dates); verify them carefully before using them.
+
+For any submitted field that is not matched to text in the original document, the default option adds it to a clearly labelled **Information to incorporate / review** section at the end of the generated document. Such information must be moved into its correct place and reviewed before official use. Disable the option if you do not want the review section.
+
+**Download Generated DOCX** creates a new Word file without modifying your imported original. **Update original document (with backup)** is a separate operation requiring explicit file permissions and backup confirmation.
+
+If you still see the older interface, open https://github.com/jctc-ng/intellirequest-community/actions/workflows/pages.yml and confirm the latest Pages workflow succeeded, then force-refresh the website with **Ctrl+Shift+R**.
