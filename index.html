@@ -27,8 +27,8 @@ button:disabled{opacity:.46;cursor:not-allowed}.toolbar{display:flex;gap:10px;fl
 <main>
 <p class="notice"><strong>Private document handling:</strong> Your Word file is processed in this browser and is not uploaded to GitHub or any server. Use an authorized device and review every result before official use. The software contains no institutional template.</p>
 <section><h2>1. Open your own Word document</h2>
-<div class="toolbar"><button id="choose">Choose DOCX from this device</button></div>
-<p id="fileinfo" class="muted">For direct updates to the original file, use the latest Chrome or Edge. The app can operate without Python or LibreOffice.</p></section>
+<div class="toolbar"><label for="docx-input" id="file-label" style="display:inline-block;background:#146c4d;color:white;padding:11px 16px;border-radius:7px;cursor:pointer;margin:0">Choose DOCX from this device</label><input type="file" id="docx-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="max-width:350px" aria-label="Choose Word DOCX file"><button class="secondary" id="choose" type="button">Open with edit permission</button></div>
+<p id="fileinfo" class="muted">Choose any Word document using the file input. In Chrome or Edge, Open with edit permission allows updating the original in place. If permissions are unavailable, Save As creates an updated local copy.</p></section>
 <section><h2>2. Fill in the fields</h2>
 <p class="muted">Values fill matching placeholders, such as <code>{{EXCHANGE}}</code> or <code>{{OFFICER}}</code>. For text already written in your document, add an exact Find/Replace rule. This works with content inside tables and headers too.</p>
 <form id="form"><div class="grid">
@@ -58,4 +58,6 @@ button:disabled{opacity:.46;cursor:not-allowed}.toolbar{display:flex;gap:10px;fl
 <p class="status" id="status"></p>
 <p class="muted">Saving to the selected original creates a separate backup first and requests your permission. If your browser cannot update files directly, it will explain how to use Chrome or Edge.</p>
 </section>
-</main><script src="./assets/app.js" defer></script></body></html>
+</main><script>
+window.addEventListener('error',function(e){const info=document.getElementById('fileinfo');if(info&&e.target&&e.target.tagName==='SCRIPT')info.textContent='Application script did not load. Please refresh the page or check GitHub Pages deployment.';},true);
+</script><script src="./assets/app.js" defer></script></body></html>
