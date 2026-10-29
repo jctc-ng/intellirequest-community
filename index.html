@@ -1,151 +1,61 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IntelliRequest Community</title>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IntelliRequest Community — Local Document Updater</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#eff4f1;color:#163b2e;font:15px/1.5 system-ui,Segoe UI,sans-serif}
-header{background:#114e39;color:#fff;padding:22px max(18px,calc((100% - 1080px)/2))}
-header h1{margin:0;font-size:27px}main{max-width:1080px;margin:18px auto;padding:0 18px}
-section,form{background:#fff;border:1px solid #dce5df;border-radius:12px;padding:22px;margin:16px 0}
-h2{margin:0 0 12px;font-size:20px}h3{font-size:16px;margin:20px 0 6px}
-label{display:block;font-weight:600;margin:10px 0 5px}input,textarea{width:100%;font:inherit;border:1px solid #aabeb1;padding:10px;border-radius:7px}
-textarea{min-height:78px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
-button{border:0;border-radius:8px;background:#116c49;color:white;font:inherit;padding:10px 16px;cursor:pointer}
-button.secondary{background:#e5efe9;border:1px solid #b7d0c0;color:#13563d}
-button:disabled{opacity:.5;cursor:not-allowed}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:13px}
-.notice{background:#fff5de;border-left:4px solid #c19a36;padding:12px;border-radius:3px}
-.muted{font-size:13px;color:#587167}.rule{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:7px 0;align-items:center}
-.rule button{background:#ad534a}.document{max-width:810px;background:#fff;margin:auto;padding:45px;font:14px/1.6 Georgia,serif;color:#222}
-.document table{width:100%;border-collapse:collapse}.document td{border:1px solid #aaa;padding:6px}
-#fallback{max-height:720px;overflow:auto;background:#e3ebe6;padding:16px;border-radius:8px}
-#pdf{width:100%;height:770px;border:1px solid #bfcfc4;border-radius:8px}pre{white-space:pre-wrap}
-@media(max-width:680px){.grid,.rule{grid-template-columns:1fr}#pdf{height:510px}}
+:root{font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#163b2e;background:#eef4f0}
+*{box-sizing:border-box}body{margin:0}header{background:#114e39;color:#fff;padding:20px max(18px,calc((100% - 1100px)/2))}header h1{margin:0;font-size:28px}header p{margin:4px 0}
+main{max-width:1100px;margin:24px auto;padding:0 16px}
+section{background:#fff;border:1px solid #dce8e0;padding:22px;border-radius:12px;margin-bottom:16px}
+h2{font-size:20px;margin:0 0 12px}h3{font-size:16px;margin:18px 0 8px}
+small,.muted{color:#586e62}label{font-weight:600;display:block;margin:10px 0 4px}
+input,textarea{width:100%;padding:10px;border:1px solid #aabeb0;border-radius:7px;font:inherit}
+textarea{min-height:75px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 18px}
+button{background:#146c4d;color:white;font:inherit;padding:11px 16px;border:0;border-radius:7px;cursor:pointer}
+button.secondary{background:#e4efe9;color:#145b3e;border:1px solid #b9d0c1}
+button:disabled{opacity:.46;cursor:not-allowed}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.notice{background:#fff5e3;border-left:4px solid #c89a2c;padding:12px 15px;margin-bottom:18px}
+.rule{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:7px 0}
+.rule button{background:#9d4d46}.preview-wrap{max-height:820px;overflow:auto;background:#dae4dd;border:1px solid #cbd8ce;border-radius:10px;padding:14px}
+#preview .docx-wrapper{padding:16px!important;background:transparent!important}
+#preview .docx{margin:12px auto!important;box-shadow:0 1px 9px #0002!important}
+#report{white-space:pre-wrap;overflow-wrap:anywhere;border-top:1px solid #ddd;padding-top:10px}
+.status{font-weight:500;color:#244f37}.pill{border:1px solid #b9d5c4;color:#27613f;border-radius:30px;padding:3px 10px;font-size:12px}
+@media(max-width:670px){.grid,.rule{grid-template-columns:1fr}section{padding:15px}}
 </style></head>
-<body><header><h1>IntelliRequest Community</h1><div>Local Word document updater · User-owned templates</div></header>
+<body><header><h1>IntelliRequest Community</h1><p>Import · Fill · Preview · Update Word files locally <span class="pill">Browser edition</span></p></header>
 <main>
-<p class="notice">This public application contains no institutional RFI template. All document content is processed locally, and saving requires your explicit permission. Do not process confidential materials on an unauthorized device.</p>
-<section><h2>1. Choose your original Word document</h2>
-<div class="toolbar"><button id="choose" type="button">Open local DOCX</button></div>
-<p id="fileinfo" class="muted">Select a document using Chrome or Edge. Nothing is uploaded to GitHub.</p></section>
-<form id="form"><h2>2. Enter replacement information</h2>
-<p class="muted">Matching placeholders, e.g. <code>{{EXCHANGE}}</code> and <code>{{REFERENCE}}</code>, are replaced across paragraphs, tables, headers and footers. Existing content needs explicit Find/Replace rules below.</p>
-<div class="grid">
-<label>Exchange name<input name="exchange"></label>
-<label>Registered legal entity<input name="entity"></label>
-<label>Incorporation jurisdiction<input name="incorporation"></label>
-<label>Principal place of business<input name="principal"></label>
-<label>Licensing information<input name="license"></label>
-<label>Reference<input name="reference"></label>
-<label>Request date<input type="date" name="date"></label>
-<label>Officer<input name="officer"></label>
+<p class="notice"><strong>Private document handling:</strong> Your Word file is processed in this browser and is not uploaded to GitHub or any server. Use an authorized device and review every result before official use. The software contains no institutional template.</p>
+<section><h2>1. Open your own Word document</h2>
+<div class="toolbar"><button id="choose">Choose DOCX from this device</button></div>
+<p id="fileinfo" class="muted">For direct updates to the original file, use the latest Chrome or Edge. The app can operate without Python or LibreOffice.</p></section>
+<section><h2>2. Fill in the fields</h2>
+<p class="muted">Values fill matching placeholders, such as <code>{{EXCHANGE}}</code> or <code>{{OFFICER}}</code>. For text already written in your document, add an exact Find/Replace rule. This works with content inside tables and headers too.</p>
+<form id="form"><div class="grid">
+<label>Exchange<input name="exchange" autocomplete="off"></label>
+<label>Registered legal entity<input name="entity" autocomplete="off"></label>
+<label>Country of incorporation<input name="incorporation"></label>
+<label>Principal business address<input name="principal"></label>
+<label>Verified licence / regulator<input name="license"></label>
+<label>Request reference<input name="reference"></label>
+<label>Request date<input name="date" type="date"></label>
+<label>Requesting officer<input name="officer"></label>
 <label>Designation<input name="designation"></label>
 <label>Department<input name="department"></label>
-<label>Official email<input type="email" name="email"></label>
+<label>Official email<input name="email" type="email"></label>
 <label>Approving officer<input name="approver"></label>
 </div>
-<label>Subject identifiers (one per line)<textarea name="subjects"></textarea></label>
-<h3>Find and Replace existing text</h3>
-<div id="rules"></div><button type="button" class="secondary" id="newRule">Add a rule</button>
-<div class="toolbar"><button id="generate" type="submit" disabled>Generate preview</button></div>
-</form>
-<section id="review" hidden>
-<h2>3. Preview changes in your imported document</h2>
-<p id="message" class="muted"></p>
-<iframe title="Microsoft Word page preview" id="pdf" hidden></iframe>
-<div id="fallback" hidden></div>
-<h3>Replacement and verification report</h3><pre id="report"></pre>
-<div class="toolbar">
-<button type="button" class="secondary" id="again">Update preview</button>
-<button type="button" id="save" disabled>Save changes to original DOCX</button>
-</div>
-<p class="notice">Saving requires first creating a backup of the original document in a different file. The local DOCX is then updated in place. Do not use this as a substitute for legal or supervisory review.</p>
+<label>Wallet addresses / identifiers (one per line)<textarea name="subjects"></textarea></label>
+<h3>Replace existing wording across the document</h3><div id="rules"></div>
+<div class="toolbar"><button type="button" class="secondary" id="addRule">Add Find/Replace rule</button>
+<button type="submit" id="generate" disabled>Generate document preview</button></div></form>
 </section>
-</main>
-<script>
-'use strict';
-const form=document.querySelector('#form'),rules=document.querySelector('#rules');
-const review=document.querySelector('#review'),save=document.querySelector('#save');
-const message=document.querySelector('#message'),pdf=document.querySelector('#pdf');
-const fallback=document.querySelector('#fallback');
-let handle=null,original=null,hash=null,payload=null,previewUrl=null;
-const mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const invalidate=()=>{save.disabled=true;message.textContent='Form changed. Generate a new preview before saving.'};
-const error=e=>{message.textContent='Error: '+e.message;review.hidden=false;save.disabled=true};
-function rule(){
- const row=document.createElement('div');row.className='rule';
- const a=document.createElement('input'),b=document.createElement('input');
- a.placeholder='Find exact text';b.placeholder='Replace with';a.setAttribute('aria-label','Find');
- b.setAttribute('aria-label','Replace with');
- const del=document.createElement('button');del.textContent='Remove';del.type='button';
- del.addEventListener('click',()=>{row.remove();invalidate()});
- a.addEventListener('input',invalidate);b.addEventListener('input',invalidate);
- row.append(a,b,del);rules.append(row);
-}
-rule();document.querySelector('#newRule').addEventListener('click',rule);
-form.addEventListener('input',invalidate);
-async function sha256(data){
- const dig=await crypto.subtle.digest('SHA-256',data);
- return Array.from(new Uint8Array(dig)).map(x=>x.toString(16).padStart(2,'0')).join('');
-}
-function fromBase64(data,type){
- return new Blob([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],{type});
-}
-document.querySelector('#choose').onclick=async()=>{
- if(!window.showOpenFilePicker){alert('Use an updated Chrome or Edge browser at http://127.0.0.1:8765 to permit local file updates.');return}
- try{
-   const [picked]=await showOpenFilePicker({multiple:false,types:[{description:'Word DOCX',accept:{[mime]:['.docx']}}]});
-   const f=await picked.getFile();
-   if(!f.name.toLowerCase().endsWith('.docx'))throw Error('Select DOCX');
-   handle=picked;original=f;hash=await sha256(await f.arrayBuffer());payload=null;
-   document.querySelector('#generate').disabled=false;save.disabled=true;review.hidden=true;
-   document.querySelector('#fileinfo').textContent='Selected: '+f.name+' ('+Math.round(f.size/1024)+' KB).';
- }catch(e){if(e.name!=='AbortError')alert(e.message)}
-};
-async function preview(){
- if(!handle){alert('Import a document first');return}
- try{
-   message.textContent='Generating preview locally…';review.hidden=false;save.disabled=true;
-   const data=new FormData(form);
-   data.append('document',original,original.name);
-   data.append('rules',JSON.stringify([...rules.children].map(row=>({old:row.children[0].value,new:row.children[1].value})).filter(r=>r.old)));
-   const response=await fetch('/preview',{method:'POST',body:data});
-   const next=await response.json();
-   if(!response.ok)throw Error(next.error||'Preview failed');
-   payload=next;
-   if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}
-   if(payload.pdf_base64){
-      previewUrl=URL.createObjectURL(fromBase64(payload.pdf_base64,'application/pdf'));
-      pdf.src=previewUrl;pdf.hidden=false;fallback.hidden=true;
-      message.textContent='High-fidelity Word page preview. Confirm the entire document before saving.';
-   }else{
-      pdf.hidden=true;pdf.removeAttribute('src');
-      fallback.hidden=false;fallback.innerHTML=payload.preview_html;
-      message.textContent='Simplified content preview: '+(payload.pdf_error||'Word not installed')+'. Exact page layout not available.';
-   }
-   document.querySelector('#report').textContent=(payload.report.warnings||[]).join('\n')+
-    '\n\nReplacements: '+JSON.stringify(payload.report.replacements||[],null,2);
-   save.disabled=false;review.scrollIntoView({behavior:'smooth'});
- }catch(e){error(e)}
-}
-form.addEventListener('submit',e=>{e.preventDefault();preview()});
-document.querySelector('#again').onclick=preview;
-save.onclick=async()=>{
- if(!payload||!handle||save.disabled)return;
- if(!confirm('Make a BACKUP and then replace the original '+handle.name+' with the reviewed changes?'))return;
- try{
-   const backup=await showSaveFilePicker({suggestedName:original.name.replace(/\.docx$/i,'')+'-backup.docx',
-     types:[{description:'Word DOCX',accept:{[mime]:['.docx']}}]});
-   const latest=await handle.getFile();
-   if((await sha256(await latest.arrayBuffer()))!==hash)throw Error('Original document changed. Reopen before saving.');
-   if(await backup.isSameEntry(handle))throw Error('The backup must be a different file.');
-   const backupStream=await backup.createWritable();
-   await backupStream.write(await latest.arrayBuffer());await backupStream.close();
-   const stream=await handle.createWritable();
-   await stream.write(fromBase64(payload.docx_base64,mime));
-   await stream.close();
-   original=await handle.getFile();hash=await sha256(await original.arrayBuffer());
-   save.disabled=true;
-   message.textContent='Updated selected file on your device. Backup created. Open the final DOCX in Word for verification.';
- }catch(e){if(e.name!=='AbortError')error(e)}
-};
-</script>
-</body></html>
+<section id="review" hidden><h2>3. Preview your updated document</h2>
+<p class="muted">The preview uses the imported Word document and retains many original styles, tables, headers and embedded images. Browser rendering may differ from Microsoft Word, particularly for pagination, floating objects, footnotes and complex layouts.</p>
+<div class="preview-wrap"><div id="preview"></div></div>
+<h3>Change report and review reminders</h3><pre id="report"></pre>
+<div class="toolbar"><button id="again" class="secondary">Regenerate preview</button><button id="save" disabled>Save updated document on my device</button></div>
+<p class="status" id="status"></p>
+<p class="muted">Saving to the selected original creates a separate backup first and requests your permission. If your browser cannot update files directly, it will explain how to use Chrome or Edge.</p>
+</section>
+</main><script src="./assets/app.js" defer></script></body></html>
