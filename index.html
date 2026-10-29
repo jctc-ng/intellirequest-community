@@ -46,6 +46,8 @@ button:disabled{opacity:.46;cursor:not-allowed}.toolbar{display:flex;gap:10px;fl
 <label>Approving officer<input name="approver"></label>
 </div>
 <label>Wallet addresses / identifiers (one per line)<textarea name="subjects"></textarea></label>
+<label style="display:flex;align-items:flex-start;gap:10px;font-weight:500"><input type="checkbox" id="appendUnmatched" checked style="width:auto;margin-top:6px">Include fields not found in the document in a clearly labelled “Information to incorporate / review” section at the end of the draft.</label>
+<p class="muted">This prevents entered information from silently disappearing. The supplemental section is a review aid, not an automatically approved replacement for the correct paragraphs or tables.</p>
 <h3>Update fields already written in the document</h3>
 <p class="muted">For documents without placeholders, enter the existing wording in the <strong>Currently written in document</strong> column. IntelliRequest will replace every matching occurrence with the new value above. Reference and date values are suggested where clearly identified; confirm them before proceeding.</p>
 <div class="mapping"><strong>Field</strong><strong>Currently written in document</strong><strong>New value (from form)</strong></div>
