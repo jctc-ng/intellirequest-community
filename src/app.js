@@ -83,6 +83,7 @@ async function setSelectedFile(file,handle=null){
   generatedBlob=null;changed=false;$("review").hidden=true;$("generate").disabled=false;
   updateStatus("Selected: "+file.name+" ("+Math.round(file.size/1024)+" KB). "+
     (handle?"Can back up and update the original locally.":"Can preview and download an updated local copy."));
+  await detectCurrentValues();
 }
 $("docx-input").addEventListener("change",async event=>{
   try{await setSelectedFile(event.target.files?.[0]||null);}
@@ -143,7 +144,7 @@ function valuesAndRules() {
     let value=(entries[key]||"").trim();
     if(key==="subjects")value=value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).join("; ");
     if(value) {
-      pairs.push(["{{"+key.toUpperCase()+"}}",value],["[["+key.toUpperCase()+"]]",value]);
+      pairs.push(["{{"+key.toUpperCase()+"}}",value,key],["[["+key.toUpperCase()+"]]",value,key]);
     }
   }
   if(entries.date) {
@@ -151,7 +152,7 @@ function valuesAndRules() {
     if(Number.isNaN(date.getTime()))throw Error("Enter a valid date.");
     const day=date.getDate(), suffix=(day%100>=11&&day%100<=13)?"th":({1:"st",2:"nd",3:"rd"}[day%10]||"th");
     const formatted=day+suffix+" "+date.toLocaleString("en-GB",{month:"long",year:"numeric"});
-    pairs.push(["{{DATE_LONG}}",formatted],["[[DATE_LONG]]",formatted]);
+    pairs.push(["{{DATE_LONG}}",formatted,"date"],["[[DATE_LONG]]",formatted,"date"]);
   }
   const custom=[...$("rules").querySelectorAll(".rule")].map(row=>({
     old:row.children[0].value,new:row.children[1].value
@@ -161,7 +162,7 @@ function valuesAndRules() {
     if(rule.old.length>500||rule.new.length>3000)throw Error("A Find/Replace value is too long.");
     if(rule.old===rule.new)continue;
     if(rule.new.includes(rule.old))throw Error("Replacement cannot contain the search phrase itself: "+rule.old.slice(0,60));
-    pairs.push([rule.old,rule.new]);
+    pairs.push([rule.old,rule.new,null]);
   }
   for(const key of mappingKeys){
     const old=mappingInputs.get(key).value.trim();
@@ -173,7 +174,7 @@ function valuesAndRules() {
     }
     if(old&&value&&old!==value){
       if(value.includes(old))throw Error("New value for "+key+" contains old text, which risks recursive matching.");
-      pairs.push([old,value]);
+      pairs.push([old,value,key]);
     }
   }
   return pairs.sort((a,b)=>b[0].length-a[0].length);
@@ -185,7 +186,7 @@ async function generate() {
   status("Updating the selected Word document entirely within this browser…");
   try {
     const zip=await JSZip.loadAsync(await selectedFile.arrayBuffer());
-    const rules=valuesAndRules();const counts=new Map();
+    const rules=valuesAndRules();const counts=new Map();const matchedFields=new Set();
     const names=Object.keys(zip.files).filter(name=>/^word\/(document|header\d+|footer\d+|footnotes|endnotes)\.xml$/.test(name));
     for(const name of names){
       const original=await zip.file(name).async("string");
@@ -193,12 +194,48 @@ async function generate() {
       if(xml.querySelector("parsererror"))throw Error("Invalid Word XML in "+name);
       const paragraphs=[...xml.getElementsByTagNameNS("*","p")];
       let changedFile=false;
-      for(const [old,value] of rules){
+      for(const [old,value,key] of rules){
         let hits=0;
         for(const para of paragraphs)hits+=replaceAcrossNodes(para,old,value);
-        if(hits){changedFile=true;counts.set(old,(counts.get(old)||0)+hits);}
+        if(hits){changedFile=true;counts.set(old,(counts.get(old)||0)+hits);if(key)matchedFields.add(key);}
       }
       if(changedFile)zip.file(name,new XMLSerializer().serializeToString(xml));
+    }
+    // Explicitly append unmatched fields as REVIEW information (not a legal assertion).
+    const unmatched=[];
+    const data=Object.fromEntries(new FormData($("form")).entries());
+    for(const key of fields){
+      let value=(data[key]||"").trim();
+      if(!value || matchedFields.has(key))continue;
+      if(key==="date"){
+        const d=new Date(value+"T12:00:00"), n=d.getDate();
+        const suffix=(n%100>=11&&n%100<=13)?"th":({1:"st",2:"nd",3:"rd"}[n%10]||"th");
+        value=n+suffix+" "+d.toLocaleString("en-GB",{month:"long",year:"numeric"});
+      }
+      unmatched.push([mappingLabels[key]||key, value]);
+    }
+    if(unmatched.length && $("appendUnmatched").checked){
+      const file=zip.file("word/document.xml");
+      const xml=new DOMParser().parseFromString(await file.async("string"),"application/xml");
+      const w="http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+      const body=xml.getElementsByTagNameNS(w,"body")[0];
+      if(!body)throw Error("Word document body missing.");
+      const section=[...body.children].find(el=>el.localName==="sectPr"&&el.namespaceURI===w);
+      function addReviewParagraph(text){
+        const p=xml.createElementNS(w,"w:p");
+        const r=xml.createElementNS(w,"w:r");
+        const t=xml.createElementNS(w,"w:t");
+        t.setAttribute("xml:space","preserve");t.textContent=text;
+        r.append(t);p.append(r);
+        if(section)body.insertBefore(p,section);else body.append(p);
+      }
+      addReviewParagraph("INFORMATION TO INCORPORATE / REVIEW — NOT PART OF THE APPROVED TEMPLATE");
+      for(const [label,value] of unmatched){
+        const lines=String(value).split(/\\r?\\n/).filter(Boolean);
+        for(const [i,line] of lines.entries())addReviewParagraph((i===0?label+": ":"")+" "+line);
+      }
+      zip.file("word/document.xml",new XMLSerializer().serializeToString(xml));
+      counts.set("Supplemental review section",unmatched.length);
     }
     generatedBlob=await zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6}});
     const target=$("preview");target.replaceChildren();
@@ -228,6 +265,11 @@ async function generate() {
       "Review names, dates, account identifiers, legal statements, signatures and all annexes.",
       "No institution-specific document or legal authority is supplied by this application."
     ];
+    if(unmatched.length){
+      reminders.unshift(unmatched.length+" entered field(s) had no matching location in the imported document: "+unmatched.map(x=>x[0]).join(", ")+".");
+      if($("appendUnmatched").checked) reminders.unshift("Unmatched details appear only in the appended review section; integrate them into the correct document locations before submitting.");
+      else reminders.unshift("Unmatched details were NOT added. Enter exact original values or enable the review section.");
+    }
     if(!results.length) reminders.unshift("No matching fields or replacement phrases were found. Your document may be unchanged.");
     $("report").textContent="Replacements:\n"+JSON.stringify(results,null,2)+"\n\nReview reminders:\n• "+reminders.join("\n• ");
     changed=results.length>0;$("save").disabled=!changed;$("download").disabled=!changed;
