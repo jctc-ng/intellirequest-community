@@ -40,7 +40,9 @@ async function detectCurrentValues(){
       reference:/\b(?:Our\s+Ref(?:erence)?|Request\s+Ref(?:erence)?|Case\s+Ref(?:erence)?)\s*[:#-]\s*([^\r\n]+)/i,
       date:/\bDate\s*:\s*((?:\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4})|(?:\d{1,2}[/-]\d{1,2}[/-]\d{4})|(?:\d{4}-\d{2}-\d{2}))/i,
       email:/\b([\w.+-]+@[\w.-]+\.[A-Za-z]{2,})\b/,
-      entity:/\b(?:For the attention of|Attention to)\s*:[^\n]*\n\s*([^\n]+)/i
+      entity:/\b(?:For the attention of|Attention to)\s*:[^\n]*\n\s*([^\n]+)/i,
+      incorporation:/\bincorporated in\s+([^,.\n;]+)/i,
+      principal:/\b(?:principal place of business in|headquartered in)\s+([^,.\n;]+)/i
     };
     let found=0;
     for(const [key,pattern] of Object.entries(patterns)){
@@ -49,7 +51,15 @@ async function detectCurrentValues(){
       const m=text.match(pattern);
       if(m&&m[1]&&m[1].trim().length<180){input.value=m[1].trim();found++;}
     }
-    updateStatus("Imported: "+selectedFile.name+". "+found+" existing values suggested. Confirm each value; unfilled original fields require manual mapping.");
+    const legal=mappingInputs.get("entity")?.value.trim();
+    if(legal && !mappingInputs.get("exchange").value.trim()){
+      const first=legal.match(/^([A-Za-z0-9][A-Za-z0-9-]*)/);
+      if(first && first[1].length>2){
+        mappingInputs.get("exchange").value=first[1];
+        found++;
+      }
+    }
+    updateStatus("Imported: "+selectedFile.name+". "+found+" POSSIBLE values suggested. Verify the suggestions before generating; they may be inaccurate.");
     invalidate();
   }catch(err){updateStatus("Unable to inspect document fields: "+err.message);}
 }
@@ -231,7 +241,7 @@ async function generate() {
       }
       addReviewParagraph("INFORMATION TO INCORPORATE / REVIEW — NOT PART OF THE APPROVED TEMPLATE");
       for(const [label,value] of unmatched){
-        const lines=String(value).split(/\\r?\\n/).filter(Boolean);
+        const lines=String(value).split(/\r?\n/).filter(Boolean);
         for(const [i,line] of lines.entries())addReviewParagraph((i===0?label+": ":"")+" "+line);
       }
       zip.file("word/document.xml",new XMLSerializer().serializeToString(xml));
