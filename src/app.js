@@ -28,24 +28,30 @@ async function fingerprint(bytes) {
   return [...new Uint8Array(digest)].map(n=>n.toString(16).padStart(2,"0")).join("");
 }
 
-$("choose").addEventListener("click", async () => {
-  if (typeof window.showOpenFilePicker !== "function") {
-    updateStatus("Direct local file updating requires recent Chrome or Edge on HTTPS. Please use one of these browsers.");
-    return;
+
+async function setSelectedFile(file,handle=null){
+  if(!file || !file.name.toLowerCase().endsWith(".docx")) throw Error("Choose a .docx Word document.");
+  if(file.size>12*1024*1024)throw Error("Maximum supported document size is 12 MB.");
+  const buffer=await file.arrayBuffer();
+  await JSZip.loadAsync(buffer);
+  fileHandle=handle;selectedFile=file;originalFingerprint=await fingerprint(buffer);
+  generatedBlob=null;changed=false;$("review").hidden=true;$("generate").disabled=false;
+  updateStatus("Selected: "+file.name+" ("+Math.round(file.size/1024)+" KB). "+
+    (handle?"Can back up and update the original locally.":"Can preview and save an updated local copy."));
+}
+$("docx-input").addEventListener("change",async event=>{
+  try{await setSelectedFile(event.target.files?.[0]||null);}
+  catch(err){updateStatus("Cannot read DOCX: "+err.message);}
+});
+$("choose").addEventListener("click",async()=>{
+  if(typeof window.showOpenFilePicker!=="function"){
+    $("docx-input").click();return;
   }
-  try {
-    const [handle] = await window.showOpenFilePicker({
-      multiple:false, types:[{description:"Word DOCX",accept:{[mime]:[".docx"]}}]
-    });
-    const file = await handle.getFile();
-    if (!file.name.toLowerCase().endsWith(".docx")) throw Error("Choose a .docx Word document.");
-    if (file.size > 12*1024*1024) throw Error("Maximum supported document is 12 MB.");
-    const buffer = await file.arrayBuffer();
-    await JSZip.loadAsync(buffer); // Validate ZIP structure before accepting.
-    fileHandle=handle; selectedFile=file; originalFingerprint=await fingerprint(buffer);
-    generatedBlob=null; $("review").hidden=true; $("generate").disabled=false;
-    updateStatus("Selected: "+file.name+" ("+Math.round(file.size/1024)+" KB). Document remains on this device.");
-  } catch(err) { if (err.name!=="AbortError") updateStatus("Unable to open file: "+err.message); }
+  try{
+    const [handle]=await window.showOpenFilePicker({multiple:false,
+      types:[{description:"Word DOCX",accept:{[mime]:[".docx"]}}]});
+    await setSelectedFile(await handle.getFile(),handle);
+  }catch(err){if(err.name!=="AbortError")updateStatus("Cannot open file: "+err.message);}
 });
 
 function replaceAcrossNodes(para, find, replacement) {
@@ -162,26 +168,43 @@ $("form").addEventListener("submit",event=>{event.preventDefault();generate();})
 $("again").addEventListener("click",generate);
 
 $("save").addEventListener("click",async()=>{
-  if(!fileHandle||!generatedBlob||!changed)return;
-  if(!window.showSaveFilePicker){status("In-place saving requires Chrome or Edge with file system access.");return;}
-  if(!confirm("Create a separate backup and replace the selected Word file with the previewed changes?"))return;
-  try {
-    // Invoke the save picker directly in the user gesture, before awaiting any other work.
+  if(!generatedBlob||!changed)return;
+  if(!window.showSaveFilePicker){
+    // Explicit user action: save a copy on browsers without local write permissions.
+    const url=URL.createObjectURL(generatedBlob);
+    const link=document.createElement("a");
+    link.href=url;link.download=selectedFile.name.replace(/\\.docx$/i,"")+"-updated.docx";
+    link.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
+    status("Your updated Word copy has been saved using the browser download mechanism. The original remains unchanged.");
+    return;
+  }
+  try{
+    if(!fileHandle){
+      const destination=await window.showSaveFilePicker({
+        suggestedName:selectedFile.name.replace(/\\.docx$/i,"")+"-updated.docx",
+        types:[{description:"Word DOCX",accept:{[mime]:[".docx"]}}]
+      });
+      const writer=await destination.createWritable();
+      await writer.write(generatedBlob);await writer.close();
+      $("save").disabled=true;
+      status("Updated DOCX saved to your chosen location. The original was not modified.");
+      return;
+    }
+    if(!confirm("Create a separate backup and replace the selected Word file with the previewed changes?"))return;
     const backup=await window.showSaveFilePicker({
-      suggestedName:selectedFile.name.replace(/\.docx$/i,"")+"-backup.docx",
+      suggestedName:selectedFile.name.replace(/\\.docx$/i,"")+"-backup.docx",
       types:[{description:"Word DOCX",accept:{[mime]:[".docx"]}}]
     });
-    if(await backup.isSameEntry(fileHandle))throw Error("Backup must have a different filename.");
+    if(await backup.isSameEntry(fileHandle))throw Error("Backup must be a different file.");
     const latest=await fileHandle.getFile();
     if(await fingerprint(await latest.arrayBuffer())!==originalFingerprint)
-      throw Error("The original document changed since import. Reopen it and regenerate preview.");
-    const bw=await backup.createWritable();
-    await bw.write(latest);await bw.close();
-    const writable=await fileHandle.createWritable();
-    await writable.write(generatedBlob);await writable.close();
+      throw Error("Original document changed since import. Open and preview it again.");
+    const bw=await backup.createWritable();await bw.write(latest);await bw.close();
+    const writer=await fileHandle.createWritable();
+    await writer.write(generatedBlob);await writer.close();
     selectedFile=await fileHandle.getFile();
     originalFingerprint=await fingerprint(await selectedFile.arrayBuffer());
     $("save").disabled=true;generatedBlob=null;
-    status("Your original Word document was updated on this device and a separate backup was created. Open Word to inspect the final formatting.");
+    status("Original Word document updated on this device and separate backup created. Open in Word to inspect final formatting.");
   }catch(err){if(err.name!=="AbortError")status("Save failed: "+err.message);}
 });
