@@ -7,7 +7,7 @@
 *{box-sizing:border-box}body{margin:0}header{background:#114e39;color:#fff;padding:20px max(18px,calc((100% - 1100px)/2))}header h1{margin:0;font-size:28px}header p{margin:4px 0}
 main{max-width:1100px;margin:24px auto;padding:0 16px}
 section{background:#fff;border:1px solid #dce8e0;padding:22px;border-radius:12px;margin-bottom:16px}
-h2{font-size:20px;margin:0 0 12px}h3{font-size:16px;margin:18px 0 8px}
+h2{font-size:20px;margin:0 0 12px}h3{font-size:16px;margin:18px 0 8px}.mapping{display:grid;grid-template-columns:160px 1fr 1fr;gap:10px;align-items:center;margin:7px 0}.mapping label{margin:0}.mapping input{min-width:0}@media(max-width:670px){.mapping{grid-template-columns:1fr}}
 small,.muted{color:#586e62}label{font-weight:600;display:block;margin:10px 0 4px}
 input,textarea{width:100%;padding:10px;border:1px solid #aabeb0;border-radius:7px;font:inherit}
 textarea{min-height:75px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 18px}
@@ -46,7 +46,12 @@ button:disabled{opacity:.46;cursor:not-allowed}.toolbar{display:flex;gap:10px;fl
 <label>Approving officer<input name="approver"></label>
 </div>
 <label>Wallet addresses / identifiers (one per line)<textarea name="subjects"></textarea></label>
-<h3>Replace existing wording across the document</h3><div id="rules"></div>
+<h3>Update fields already written in the document</h3>
+<p class="muted">For documents without placeholders, enter the existing wording in the <strong>Currently written in document</strong> column. IntelliRequest will replace every matching occurrence with the new value above. Reference and date values are suggested where clearly identified; confirm them before proceeding.</p>
+<div class="mapping"><strong>Field</strong><strong>Currently written in document</strong><strong>New value (from form)</strong></div>
+<div id="fieldMapping"></div>
+<div class="toolbar"><button type="button" class="secondary" id="detect">Find current values in imported document</button></div>
+<h3>Additional Find/Replace rules</h3><div id="rules"></div>
 <div class="toolbar"><button type="button" class="secondary" id="addRule">Add Find/Replace rule</button>
 <button type="submit" id="generate" disabled>Generate document preview</button></div></form>
 </section>
@@ -54,7 +59,7 @@ button:disabled{opacity:.46;cursor:not-allowed}.toolbar{display:flex;gap:10px;fl
 <p class="muted">The preview uses the imported Word document and retains many original styles, tables, headers and embedded images. Browser rendering may differ from Microsoft Word, particularly for pagination, floating objects, footnotes and complex layouts.</p>
 <div class="preview-wrap"><div id="preview"></div></div>
 <h3>Change report and review reminders</h3><pre id="report"></pre>
-<div class="toolbar"><button id="again" class="secondary">Regenerate preview</button><button id="save" disabled>Save updated document on my device</button></div>
+<div class="toolbar"><button id="again" class="secondary">Regenerate preview</button><button id="download" disabled>Download Generated DOCX</button><button id="save" class="secondary" disabled>Update original document (with backup)</button></div>
 <p class="status" id="status"></p>
 <p class="muted">Saving to the selected original creates a separate backup first and requests your permission. If your browser cannot update files directly, it will explain how to use Chrome or Edge.</p>
 </section>
