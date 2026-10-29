@@ -7,8 +7,53 @@ const fields = ["exchange","entity","incorporation","principal","license","refer
 let fileHandle = null, selectedFile = null, originalFingerprint = null, generatedBlob = null, changed = false;
 const status = text => $("status").textContent = text;
 const updateStatus = text => $("fileinfo").textContent = text;
-const invalidate = () => { generatedBlob = null; $("save").disabled = true; status("Inputs changed. Regenerate the preview before saving."); };
+const invalidate = () => { generatedBlob = null; changed = false; $("save").disabled = true; $("download").disabled = true; status("Inputs changed. Regenerate the preview before downloading or saving."); };
 
+
+// Explicit source-to-target mapping is essential for imported documents without placeholders.
+const mappingKeys=["exchange","entity","incorporation","principal","license","reference","date","officer","designation","department","email","approver"];
+const mappingLabels={exchange:"Exchange",entity:"Registered entity",incorporation:"Incorporation",principal:"Principal address",license:"Licence",reference:"Reference",date:"Request date",officer:"Officer",designation:"Designation",department:"Department",email:"Official email",approver:"Approving officer"};
+const mappingInputs = new Map();
+function buildMappingInputs(){
+  const holder=$("fieldMapping");holder.replaceChildren();
+  for(const key of mappingKeys){
+    const row=document.createElement("div");row.className="mapping";
+    const label=document.createElement("label");label.textContent=mappingLabels[key];
+    const old=document.createElement("input");old.type="text";old.placeholder="Existing text, exact match";old.setAttribute("aria-label","Current "+mappingLabels[key]);old.addEventListener("input",invalidate);
+    const target=document.createElement("input");target.type="text";target.readOnly=true;target.tabIndex=-1;target.placeholder="Enter new value in the form above";target.setAttribute("aria-label","New "+mappingLabels[key]);
+    const main=$("form").elements.namedItem(key);
+    main.addEventListener("input",()=>{target.value=main.value;});
+    mappingInputs.set(key,old);row.append(label,old,target);holder.append(row);
+  }
+}
+buildMappingInputs();
+function paragraphText(xml){
+  return [...xml.getElementsByTagNameNS("*","p")].map(p=>[...p.getElementsByTagNameNS("*","t")].map(t=>t.textContent||"").join("")).join("\n");
+}
+async function detectCurrentValues(){
+  if(!selectedFile){updateStatus("Import a Word document first.");return;}
+  try{
+    const zip=await JSZip.loadAsync(await selectedFile.arrayBuffer());
+    const xml=new DOMParser().parseFromString(await zip.file("word/document.xml").async("string"),"application/xml");
+    const text=paragraphText(xml);
+    const patterns={
+      reference:/\b(?:Our\s+Ref(?:erence)?|Request\s+Ref(?:erence)?|Case\s+Ref(?:erence)?)\s*[:#-]\s*([^\r\n]+)/i,
+      date:/\bDate\s*:\s*((?:\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4})|(?:\d{1,2}[/-]\d{1,2}[/-]\d{4})|(?:\d{4}-\d{2}-\d{2}))/i,
+      email:/\b([\w.+-]+@[\w.-]+\.[A-Za-z]{2,})\b/,
+      entity:/\b(?:For the attention of|Attention to)\s*:[^\n]*\n\s*([^\n]+)/i
+    };
+    let found=0;
+    for(const [key,pattern] of Object.entries(patterns)){
+      const input=mappingInputs.get(key);
+      if(!input || input.value.trim())continue;
+      const m=text.match(pattern);
+      if(m&&m[1]&&m[1].trim().length<180){input.value=m[1].trim();found++;}
+    }
+    updateStatus("Imported: "+selectedFile.name+". "+found+" existing values suggested. Confirm each value; unfilled original fields require manual mapping.");
+    invalidate();
+  }catch(err){updateStatus("Unable to inspect document fields: "+err.message);}
+}
+$("detect").addEventListener("click",detectCurrentValues);
 function addRule() {
   const line = document.createElement("div"); line.className = "rule";
   const old = document.createElement("input"); old.placeholder = "Find exact old text"; old.setAttribute("aria-label","Find text");
@@ -37,7 +82,7 @@ async function setSelectedFile(file,handle=null){
   fileHandle=handle;selectedFile=file;originalFingerprint=await fingerprint(buffer);
   generatedBlob=null;changed=false;$("review").hidden=true;$("generate").disabled=false;
   updateStatus("Selected: "+file.name+" ("+Math.round(file.size/1024)+" KB). "+
-    (handle?"Can back up and update the original locally.":"Can preview and save an updated local copy."));
+    (handle?"Can back up and update the original locally.":"Can preview and download an updated local copy."));
 }
 $("docx-input").addEventListener("change",async event=>{
   try{await setSelectedFile(event.target.files?.[0]||null);}
@@ -118,12 +163,25 @@ function valuesAndRules() {
     if(rule.new.includes(rule.old))throw Error("Replacement cannot contain the search phrase itself: "+rule.old.slice(0,60));
     pairs.push([rule.old,rule.new]);
   }
+  for(const key of mappingKeys){
+    const old=mappingInputs.get(key).value.trim();
+    let value=(entries[key]||"").trim();
+    if(key==="date"&&/^\d{4}-\d{2}-\d{2}$/.test(value)){
+      const d=new Date(value+"T12:00:00");
+      const n=d.getDate(),suffix=(n%100>=11&&n%100<=13)?"th":({1:"st",2:"nd",3:"rd"}[n%10]||"th");
+      value=n+suffix+" "+d.toLocaleString("en-GB",{month:"long",year:"numeric"});
+    }
+    if(old&&value&&old!==value){
+      if(value.includes(old))throw Error("New value for "+key+" contains old text, which risks recursive matching.");
+      pairs.push([old,value]);
+    }
+  }
   return pairs.sort((a,b)=>b[0].length-a[0].length);
 }
 
 async function generate() {
   if(!selectedFile)return;
-  $("review").hidden=false;$("save").disabled=true;generatedBlob=null;
+  $("review").hidden=false;$("save").disabled=true;$("download").disabled=true;generatedBlob=null;changed=false;
   status("Updating the selected Word document entirely within this browser…");
   try {
     const zip=await JSZip.loadAsync(await selectedFile.arrayBuffer());
@@ -172,14 +230,25 @@ async function generate() {
     ];
     if(!results.length) reminders.unshift("No matching fields or replacement phrases were found. Your document may be unchanged.");
     $("report").textContent="Replacements:\n"+JSON.stringify(results,null,2)+"\n\nReview reminders:\n• "+reminders.join("\n• ");
-    changed=results.length>0;$("save").disabled=!changed;
+    changed=results.length>0;$("save").disabled=!changed;$("download").disabled=!changed;
     status(renderWarning+(changed?"Preview generated. Check the changes before updating your original file.":"No edits matched. Add placeholders or Find/Replace rules."));
   }catch(err) {
-    generatedBlob=null;$("save").disabled=true;status("Preview error: "+err.message);
+    generatedBlob=null;$("save").disabled=true;$("download").disabled=true;status("Preview error: "+err.message);
   }
 }
 $("form").addEventListener("submit",event=>{event.preventDefault();generate();});
 $("again").addEventListener("click",generate);
+
+$("download").addEventListener("click",()=>{
+  if(!generatedBlob||!changed)return;
+  const link=document.createElement("a");
+  const url=URL.createObjectURL(generatedBlob);
+  link.href=url;
+  link.download=(selectedFile.name.replace(/\\.docx$/i,"")||"IntelliRequest")+"-generated.docx";
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),15000);
+  status("Generated DOCX downloaded. Open it in Word to confirm all details and layout.");
+});
 
 $("save").addEventListener("click",async()=>{
   if(!generatedBlob||!changed)return;
