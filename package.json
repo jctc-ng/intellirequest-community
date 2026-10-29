@@ -1,0 +1,17 @@
+{
+  "name": "intellirequest-community",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "On-device browser DOCX updater",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "docx-preview": "0.3.6",
+    "jszip": "3.10.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
